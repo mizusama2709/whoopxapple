@@ -24,6 +24,9 @@
         "projectId": "bdc404cd-4bde-4b82-9570-9d7d3961d71c"
       }
     },
-    "owner": "abhk"
+    "owner": "abhk",
+    "updates": {
+      "url": "https://u.expo.dev/bdc404cd-4bde-4b82-9570-9d7d3961d71c"
+    }
   }
 }
