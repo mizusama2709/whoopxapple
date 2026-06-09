@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "WHOOP Health",
+    "slug": "whoop-health",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0A0A0A",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-asset"
+    ],
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "newArchEnabled": true,
+    "extra": {
+      "eas": {
+        "projectId": "bdc404cd-4bde-4b82-9570-9d7d3961d71c"
+      }
+    },
+    "owner": "abhk"
+  }
+}
