@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors, recoveryColor } from '../theme';
-import { week } from '../data/realData';
 
 const METRICS = {
   recovery: { label: 'Recovery', unit: '%', max: 100, color: (v) => recoveryColor(v), key: 'recovery' },
@@ -10,11 +9,11 @@ const METRICS = {
   hrv: { label: 'HRV', unit: 'ms', max: 100, color: () => colors.recoveryHigh, key: 'hrv' },
 };
 
-export default function Trends() {
+export default function Trends({ week = [] }) {
   const [metric, setMetric] = useState('recovery');
   const m = METRICS[metric];
   const vals = week.map((d) => d[m.key]);
-  const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(metric === 'strain' ? 1 : 0);
+  const avg = (vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0).toFixed(metric === 'strain' ? 1 : 0);
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={{ paddingBottom: 40 }}>

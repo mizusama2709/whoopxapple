@@ -1,23 +1,42 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import Overview from './src/screens/Overview';
 import Sleep from './src/screens/Sleep';
 import Trends from './src/screens/Trends';
+import Upload from './src/screens/Upload';
 import { colors } from './src/theme';
-import { today as healthToday, sleepStages as healthStages } from './src/data/realData';
+import { buildModel } from './src/data/buildModel';
+import { loadStored } from './src/data/store';
+import bundled from './src/data/health-data.json';
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: '◎' },
   { key: 'sleep', label: 'Sleep', icon: '☾' },
   { key: 'trends', label: 'Trends', icon: '◔' },
+  { key: 'import', label: 'Import', icon: '⤓' },
 ];
 
 export default function App() {
   const [tab, setTab] = useState('overview');
-  const data = healthToday;
-  const stages = healthStages;
-  const load = useCallback(() => {}, []);
+  const [raw, setRaw] = useState(bundled);
+
+  // On launch, prefer a previously imported export over the bundled sample.
+  useEffect(() => {
+    let alive = true;
+    loadStored().then((stored) => {
+      if (alive && stored && stored.daily && stored.daily.length) setRaw(stored);
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const model = buildModel(raw);
+  const { today: data, sleepStages: stages, week } = model;
+
+  const onImported = (newRaw) => {
+    setRaw(newRaw);
+    setTab('overview');
+  };
 
   return (
     <View style={s.root}>
@@ -26,10 +45,13 @@ export default function App() {
       <SafeAreaView style={s.safe}>
         <View style={s.content}>
           {tab === 'overview' && (
-            <Overview data={data} source={data.source} onRefresh={load} refreshing={false} />
+            <Overview data={data} source={data.source} onRefresh={() => {}} refreshing={false} />
           )}
           {tab === 'sleep' && <Sleep data={data} stages={stages} />}
-          {tab === 'trends' && <Trends />}
+          {tab === 'trends' && <Trends week={week} />}
+          {tab === 'import' && (
+            <Upload onImported={onImported} currentGeneratedAt={model.generatedAt} />
+          )}
         </View>
 
         {/* Custom bottom tab bar */}
