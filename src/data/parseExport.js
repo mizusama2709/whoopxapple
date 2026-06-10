@@ -2,10 +2,9 @@
 // Never loads the whole 400MB+ file: reads the file in fixed byte chunks,
 // (optionally) inflates them through fflate's streaming Unzip, and scans the
 // decompressed text incrementally for <Record>/<Workout> elements.
-import * as FS from 'expo-file-system/legacy';
+import { File as FSFile } from 'expo-file-system/next';
 import { Unzip, UnzipInflate } from 'fflate';
 
-const CHUNK = 4 * 1024 * 1024; // 4MB compressed read window
 
 const QTYPES = {
   HKQuantityTypeIdentifierHeartRateVariabilitySDNN: 'hrv',
@@ -24,23 +23,6 @@ const SLEEP_MAP = {
   HKCategoryValueSleepAnalysisAsleepUnspecified: 'Light',
 };
 const STAGE_COLOR = { Awake: '#FF6B6B', Light: '#7BA0FF', REM: '#9B6BFF', 'Deep (SWS)': '#2C4BFF' };
-
-// --- base64 -> bytes (no atob dependency) ---
-const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-const B64I = (() => { const a = new Int16Array(256).fill(-1); for (let i = 0; i < B64.length; i++) a[B64.charCodeAt(i)] = i; return a; })();
-function b64ToBytes(str) {
-  let len = str.length;
-  while (len > 0 && (str[len - 1] === '=' || str[len - 1] === '\n' || str[len - 1] === '\r')) len--;
-  const out = new Uint8Array((len * 3) >> 2);
-  let o = 0, acc = 0, bits = 0;
-  for (let i = 0; i < len; i++) {
-    const v = B64I[str.charCodeAt(i)];
-    if (v < 0) continue;
-    acc = (acc << 6) | v; bits += 6;
-    if (bits >= 8) { bits -= 8; out[o++] = (acc >> bits) & 0xff; }
-  }
-  return o === out.length ? out : out.subarray(0, o);
-}
 
 // bytes -> string treating as latin1 (safe: the fields we read are ASCII).
 function bytesToStr(u8) {
@@ -67,8 +49,8 @@ function appleMs(s) {
 }
 
 export async function parseExport(uri, name, onProgress) {
-  const info = await FS.getInfoAsync(uri, { size: true });
-  const total = info.size || 0;
+  const fsFile = new FSFile(uri);
+  const total = fsFile.size || 0;
   const isZip = /\.zip$/i.test(name || uri);
   if (!total) throw new Error('Could not read file size — re-pick the export from the Files app, not iCloud Drive');
   console.log('[parseExport] start', { total, isZip, name });
@@ -159,26 +141,30 @@ export async function parseExport(uri, name, onProgress) {
         file.start();
       }
     };
-    let pos = 0;
-    while (pos < total) {
-      const len = Math.min(CHUNK, total - pos);
-      const b64 = await FS.readAsStringAsync(uri, { encoding: 'base64', position: pos, length: len });
-      const bytes = b64ToBytes(b64);
-      unzip.push(bytes, pos + len >= total);
+    let bytesRead = 0;
+    const stream = new FSFile(uri).readableStream();
+    const reader = stream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      unzip.push(value, false);
       if (fatal) throw fatal;
-      pos += len;
-      if (onProgress) onProgress(pos / total);
-      await new Promise((r) => setTimeout(r, 0)); // yield to UI
+      bytesRead += value.length;
+      if (onProgress) onProgress(bytesRead / total);
+      await new Promise((r) => setTimeout(r, 0));
     }
+    unzip.push(new Uint8Array(0), true);
     if (!started) throw new Error('export.xml not found in zip');
   } else {
-    let pos = 0;
-    while (pos < total) {
-      const len = Math.min(CHUNK, total - pos);
-      const b64 = await FS.readAsStringAsync(uri, { encoding: 'base64', position: pos, length: len });
-      feed(b64ToBytes(b64));
-      pos += len;
-      if (onProgress) onProgress(pos / total);
+    let bytesRead = 0;
+    const stream = new FSFile(uri).readableStream();
+    const reader = stream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      feed(value);
+      bytesRead += value.length;
+      if (onProgress) onProgress(bytesRead / total);
       await new Promise((r) => setTimeout(r, 0));
     }
   }

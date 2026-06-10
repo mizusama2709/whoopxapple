@@ -48,22 +48,31 @@ export default function Upload({ onImported, currentGeneratedAt }) {
     }, 8000);
 
     try {
-      let rejectFn;
-      const cancelPromise = new Promise((_, reject) => { rejectFn = reject; cancelRef.current = () => reject(new Error('Import cancelled')); });
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timed out after 2 minutes — the file may be stored in iCloud and not downloaded. In Files app, long-press export.zip → Download Now, then re-import.')), 120000)
-      );
+      const cancelPromise = new Promise((_, reject) => { cancelRef.current = () => reject(new Error('Import cancelled')); });
+
+      // Stall timeout: resets on every progress tick. Fires only if no progress
+      // for 30s — which signals an iCloud file that isn't fully downloaded yet.
+      let stallTimer;
+      const resetStall = () => {
+        clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => rejectStall(new Error('Import stalled for 30s — file may be stored in iCloud and not downloaded. In Files app, long-press export.zip → Download Now, then re-import.')), 30000);
+      };
+      let rejectStall;
+      const stallPromise = new Promise((_, reject) => { rejectStall = reject; });
+      resetStall();
 
       const data = await Promise.race([
         parseExport(file.uri, file.name, (p) => {
           // Clear slow hint as soon as progress starts
           if (slowTimerRef.current) { clearTimeout(slowTimerRef.current); slowTimerRef.current = null; }
+          resetStall();
           setProgress(p);
           setStatus(`Parsing… ${Math.round(p * 100)}%`);
         }),
-        timeoutPromise,
+        stallPromise,
         cancelPromise,
       ]);
+      clearTimeout(stallTimer);
 
       if (!data.daily.length) {
         throw new Error('No health records found. Pick the Apple Health export.zip (or export.xml inside it).');
