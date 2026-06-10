@@ -9,6 +9,7 @@ import Upload from './src/screens/Upload';
 import { colors } from './src/theme';
 import { buildModel } from './src/data/buildModel';
 import { loadStored } from './src/data/store';
+import { requestPermissions, getToday as getHealthKitToday } from './src/data/health';
 import bundled from './src/data/health-data.json';
 
 // SVG tab icons — each renders a clean minimal icon
@@ -89,17 +90,25 @@ function TabButton({ tab, active, onPress }) {
 export default function App() {
   const [tab, setTab] = useState('overview');
   const [raw, setRaw] = useState(bundled);
+  const [liveToday, setLiveToday] = useState(null);
 
   useEffect(() => {
     let alive = true;
     loadStored().then((stored) => {
       if (alive && stored && stored.daily && stored.daily.length) setRaw(stored);
     });
+    requestPermissions().then((granted) => {
+      if (!granted || !alive) return;
+      getHealthKitToday().then((today) => {
+        if (alive) setLiveToday(today);
+      });
+    });
     return () => { alive = false; };
   }, []);
 
   const model = buildModel(raw);
-  const { today: data, sleepStages: stages, week, series, sleepHistory, stageAverages, recoveryDetail } = model;
+  const { today: modelToday, sleepStages: stages, week, series, sleepHistory, stageAverages, recoveryDetail } = model;
+  const data = liveToday ? { ...modelToday, ...liveToday } : modelToday;
 
   const onImported = (newRaw) => {
     setRaw(newRaw);

@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+
+const STAGE_ORDER = ['Deep (SWS)', 'REM', 'Light', 'Awake'];
 
 export default function StackedBars({ data = [], height = 60 }) {
   if (!data.length) return null;
@@ -10,9 +12,12 @@ export default function StackedBars({ data = [], height = 60 }) {
         if (!total) {
           return <View key={i} style={[s.col, { backgroundColor: '#1A1A1A' }]} />;
         }
+        const sorted = [...night.stages].sort(
+          (a, b) => STAGE_ORDER.indexOf(a.name) - STAGE_ORDER.indexOf(b.name)
+        );
         return (
           <View key={i} style={s.col}>
-            {night.stages.map((st, j) => (
+            {sorted.map((st, j) => (
               <View key={j} style={{ flex: st.hrs, backgroundColor: st.color }} />
             ))}
           </View>

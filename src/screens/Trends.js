@@ -98,22 +98,26 @@ export default function Trends({ week = [], series = null }) {
 
           {/* Bar chart */}
           <View style={s.barChartCard}>
-            <View style={s.barChart}>
-              {week.map((d) => {
-                const v = d[m.key];
-                const h = Math.max(4, (v / m.max) * 140);
-                const barColor = m.color(v);
-                return (
-                  <View key={d.label} style={s.barCol}>
-                    <Text style={s.barVal}>{metric === 'strain' ? v.toFixed(1) : Math.round(v)}</Text>
-                    <View style={s.barTrack}>
-                      <View style={[s.bar, { height: h, backgroundColor: barColor }]} />
+            {week.length === 0 ? (
+              <Text style={s.noData}>No data for the last 7 days.</Text>
+            ) : (
+              <View style={s.barChart}>
+                {week.map((d) => {
+                  const v = d[m.key];
+                  const h = Math.max(4, (v / m.max) * 140);
+                  const barColor = m.color(v);
+                  return (
+                    <View key={d.label} style={s.barCol}>
+                      <Text style={s.barVal}>{metric === 'strain' ? v.toFixed(1) : Math.round(v)}</Text>
+                      <View style={s.barTrack}>
+                        <View style={[s.bar, { height: h, backgroundColor: barColor }]} />
+                      </View>
+                      <Text style={s.barLabel}>{d.label}</Text>
                     </View>
-                    <Text style={s.barLabel}>{d.label}</Text>
-                  </View>
-                );
-              })}
-            </View>
+                  );
+                })}
+              </View>
+            )}
           </View>
         </>
       ) : (
