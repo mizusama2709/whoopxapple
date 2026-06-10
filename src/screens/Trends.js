@@ -107,7 +107,7 @@ export default function Trends({ week = [], series = null }) {
                   const h = Math.max(4, (v / m.max) * 140);
                   const barColor = m.color(v);
                   return (
-                    <View key={d.label} style={s.barCol}>
+                    <View key={d.date || d.label} style={s.barCol}>
                       <Text style={s.barVal}>{metric === 'strain' ? v.toFixed(1) : Math.round(v)}</Text>
                       <View style={s.barTrack}>
                         <View style={[s.bar, { height: h, backgroundColor: barColor }]} />
