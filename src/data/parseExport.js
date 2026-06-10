@@ -81,13 +81,17 @@ export async function parseExport(uri, name, onProgress) {
   const dayBucket = (d) => (agg[d] || (agg[d] = { sum: {}, cnt: {}, max: {} }));
 
   let leftover = '';
+  // Process in 512KB sub-slices so leftover stays small even when fflate
+  // delivers 100MB+ in a single ondata callback.
+  const SUB = 512 * 1024;
   function feed(u8) {
-    leftover += bytesToStr(u8);
-    const cut = leftover.lastIndexOf('>');
-    if (cut < 0) return;
-    const slice = leftover.slice(0, cut + 1);
-    leftover = leftover.slice(cut + 1);
-    scan(slice);
+    for (let i = 0; i < u8.length; i += SUB) {
+      leftover += bytesToStr(u8.subarray(i, Math.min(i + SUB, u8.length)));
+      const cut = leftover.lastIndexOf('>');
+      if (cut < 0) continue;
+      scan(leftover.slice(0, cut + 1));
+      leftover = leftover.slice(cut + 1);
+    }
   }
   function scan(text) {
     let pos = 0;

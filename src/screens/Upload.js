@@ -51,7 +51,7 @@ export default function Upload({ onImported, currentGeneratedAt }) {
       let rejectFn;
       const cancelPromise = new Promise((_, reject) => { rejectFn = reject; cancelRef.current = () => reject(new Error('Import cancelled')); });
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timed out after 30s — the file may be stored in iCloud and not downloaded. In Files app, long-press export.zip → Download Now, then re-import.')), 30000)
+        setTimeout(() => reject(new Error('Timed out after 2 minutes — the file may be stored in iCloud and not downloaded. In Files app, long-press export.zip → Download Now, then re-import.')), 120000)
       );
 
       const data = await Promise.race([
