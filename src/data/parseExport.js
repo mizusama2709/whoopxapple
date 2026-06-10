@@ -70,6 +70,8 @@ export async function parseExport(uri, name, onProgress) {
   const info = await FS.getInfoAsync(uri, { size: true });
   const total = info.size || 0;
   const isZip = /\.zip$/i.test(name || uri);
+  if (!total) throw new Error('Could not read file size — re-pick the export from the Files app, not iCloud Drive');
+  console.log('[parseExport] start', { total, isZip, name });
 
   // aggregation state
   const agg = {}; // day -> {sum:{}, cnt:{}, max:{}}
@@ -140,12 +142,16 @@ export async function parseExport(uri, name, onProgress) {
   // ---- read loop ----
   if (isZip) {
     let started = false;
+    let fatal = null;
     const unzip = new Unzip();
     unzip.register(UnzipInflate);
     unzip.onfile = (file) => {
       if (file.name.endsWith('export.xml') && !file.name.includes('export_cda')) {
         started = true;
-        file.ondata = (err, chunk) => { if (err) throw err; feed(chunk); };
+        file.ondata = (err, chunk) => {
+          if (err) { fatal = err; return; }
+          try { feed(chunk); } catch (e) { fatal = e; }
+        };
         file.start();
       }
     };
@@ -155,6 +161,7 @@ export async function parseExport(uri, name, onProgress) {
       const b64 = await FS.readAsStringAsync(uri, { encoding: 'base64', position: pos, length: len });
       const bytes = b64ToBytes(b64);
       unzip.push(bytes, pos + len >= total);
+      if (fatal) throw fatal;
       pos += len;
       if (onProgress) onProgress(pos / total);
       await new Promise((r) => setTimeout(r, 0)); // yield to UI

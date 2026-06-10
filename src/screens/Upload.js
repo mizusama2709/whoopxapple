@@ -31,10 +31,16 @@ export default function Upload({ onImported, currentGeneratedAt }) {
     setProgress(0);
     setStatus('Reading ' + (file.name || 'file') + '…');
     try {
-      const data = await parseExport(file.uri, file.name, (p) => {
-        setProgress(p);
-        setStatus(`Parsing… ${Math.round(p * 100)}%`);
-      });
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Parsing stalled after 60s — try re-importing, or pick from Files app instead of iCloud')), 60000)
+      );
+      const data = await Promise.race([
+        parseExport(file.uri, file.name, (p) => {
+          setProgress(p);
+          setStatus(`Parsing… ${Math.round(p * 100)}%`);
+        }),
+        timeout,
+      ]);
       if (!data.daily.length) {
         throw new Error('No health records found. Pick the Apple Health export.zip (or export.xml inside it).');
       }

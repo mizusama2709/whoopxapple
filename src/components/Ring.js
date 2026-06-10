@@ -3,11 +3,10 @@ import { View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 import { colors } from '../theme';
 
-// Single circular progress ring (WHOOP-style).
 export default function Ring({
   size = 180,
   stroke = 14,
-  progress = 0,      // 0..1
+  progress = 0,
   color = colors.strain,
   track = colors.track,
   children,
@@ -17,10 +16,25 @@ export default function Ring({
   const clamped = Math.max(0, Math.min(1, progress));
   const offset = c * (1 - clamped);
 
+  // Outer glow ring: slightly larger radius, same color at very low opacity
+  const glowStroke = stroke * 2.2;
+  const glowR = (size - glowStroke) / 2 + (glowStroke - stroke) / 2;
+
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size}>
         <G rotation="-90" origin={`${size / 2}, ${size / 2}`}>
+          {/* Outer ambient glow halo */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={glowR}
+            stroke={color}
+            strokeWidth={glowStroke}
+            strokeOpacity={0.07}
+            fill="none"
+          />
+          {/* Track */}
           <Circle
             cx={size / 2}
             cy={size / 2}
@@ -29,6 +43,7 @@ export default function Ring({
             strokeWidth={stroke}
             fill="none"
           />
+          {/* Progress arc */}
           <Circle
             cx={size / 2}
             cy={size / 2}

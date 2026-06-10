@@ -23,6 +23,12 @@ function sleepPerf(hrs) {
   return Math.round(clamp((hrs / SLEEP_NEEDED) * 100, 0, 100));
 }
 
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
+}
+
 const isComplete = (d) => d.hrv != null && d.sleepHrs != null;
 
 export function buildModel(health) {
@@ -66,6 +72,51 @@ export function buildModel(health) {
       sleepHrs: d.sleepHrs ?? 0,
     }));
 
+  // Full series for trend charts — all days, null for missing, no isComplete filter
+  const series = {
+    dates: daily.map((d) => d.date),
+    hrv: daily.map((d) => d.hrv ?? null),
+    rhr: daily.map((d) => d.rhr ?? null),
+    sleepHrs: daily.map((d) => d.sleepHrs ?? null),
+    energy: daily.map((d) => (d.energy > 0 ? d.energy : null)),
+    recovery: daily.map((d) => (d.hrv != null && d.rhr != null ? deriveRecovery(d.hrv, d.rhr) : null)),
+  };
+
+  // 14-night sleep history for Sleep screen
+  const sleepHistory = daily
+    .filter((d) => d.sleepHrs != null && d.stages && d.stages.length > 0)
+    .slice(-14)
+    .map((d) => ({ date: d.date, sleepHrs: d.sleepHrs, stages: d.stages }));
+
+  const stageTotals = {};
+  sleepHistory.forEach(({ stages }) => {
+    stages.forEach(({ name, hrs }) => {
+      stageTotals[name] = (stageTotals[name] || 0) + hrs;
+    });
+  });
+  const stageAverages = {};
+  if (sleepHistory.length > 0) {
+    Object.keys(stageTotals).forEach((k) => {
+      stageAverages[k] = +(stageTotals[k] / sleepHistory.length).toFixed(1);
+    });
+  }
+
+  // Recovery detail for the explainer modal
+  const hrv30 = median(daily.slice(-30).map((d) => d.hrv).filter((v) => v != null));
+  const latestHrv = latest.hrv || 0;
+  const latestRhr = latest.rhr || 0;
+  const hrvScore = Math.round(Math.min(100, (latestHrv / 90) * 100));
+  const rhrScore = Math.round(Math.max(0, 100 - (latestRhr - 45) * 2));
+  const recoveryDetail = {
+    recovery: today.recovery,
+    hrv: latestHrv,
+    rhr: latestRhr,
+    hrvScore,
+    rhrScore,
+    baseline: hrv30,
+    aboveBaseline: latestHrv >= hrv30,
+  };
+
   const palette = ['#0093E7', '#16EC06', '#FFDE00', '#9B6BFF'];
   const workouts = ((health && health.workouts) || []).map((w, i) => ({
     name: w.name,
@@ -75,5 +126,5 @@ export function buildModel(health) {
     color: w.color || palette[i % palette.length],
   }));
 
-  return { today, sleepStages, week, workouts, generatedAt: health && health.generatedAt };
+  return { today, sleepStages, week, series, sleepHistory, stageAverages, recoveryDetail, workouts, generatedAt: health && health.generatedAt };
 }
