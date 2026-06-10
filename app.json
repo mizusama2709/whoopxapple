@@ -13,7 +13,10 @@
       "edgeToEdgeEnabled": true
     },
     "plugins": [
-      "expo-asset"
+      "expo-asset",
+      ["@kingstinct/react-native-healthkit", {
+        "NSHealthShareUsageDescription": "Used to read your health metrics for recovery and sleep analysis."
+      }]
     ],
     "runtimeVersion": {
       "policy": "sdkVersion"

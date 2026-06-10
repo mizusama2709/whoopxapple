@@ -48,10 +48,12 @@ export async function requestPermissions() {
   const api = HK.default || HK;
   const reads = [...Object.values(ID).map((x) => x.id), ...Object.values(CAT)];
   try {
-    // signature: requestAuthorization(toShare, toRead)
-    await api.requestAuthorization([], reads);
+    await Promise.race([
+      api.requestAuthorization([], reads),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+    ]);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
