@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, Animated } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import Svg, { Path, Circle, G } from 'react-native-svg';
@@ -106,14 +106,14 @@ export default function App() {
     return () => { alive = false; };
   }, []);
 
-  const model = buildModel(raw);
-  const { today: modelToday, sleepStages: stages, week, series, sleepHistory, stageAverages, recoveryDetail } = model;
+  const model = useMemo(() => buildModel(raw), [raw]);
+  const { today: modelToday, sleepStages: stages, week, series, sleepHistory, stageAverages, recoveryDetail, hrvBaseline, hrvDelta } = model;
   const data = liveToday ? { ...modelToday, ...liveToday } : modelToday;
 
-  const onImported = (newRaw) => {
+  const onImported = useCallback((newRaw) => {
     setRaw(newRaw);
     setTab('overview');
-  };
+  }, []);
 
   return (
     <View style={s.root}>
@@ -122,10 +122,10 @@ export default function App() {
       <SafeAreaView style={s.safe}>
         <View style={s.content}>
           {tab === 'overview' && (
-            <Overview data={data} source={data.source} onRefresh={() => {}} refreshing={false} recoveryDetail={recoveryDetail} generatedAt={model.generatedAt} />
+            <Overview data={data} source={data.source} onRefresh={() => {}} refreshing={false} recoveryDetail={recoveryDetail} generatedAt={model.generatedAt} hrvDelta={hrvDelta} />
           )}
           {tab === 'sleep' && <Sleep data={data} stages={stages} sleepHistory={sleepHistory} stageAverages={stageAverages} />}
-          {tab === 'trends' && <Trends week={week} series={series} />}
+          {tab === 'trends' && <Trends week={week} series={series} hrvBaseline={hrvBaseline} />}
           {tab === 'import' && (
             <Upload onImported={onImported} currentGeneratedAt={model.generatedAt} />
           )}

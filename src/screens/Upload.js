@@ -5,7 +5,7 @@ import { colors } from '../theme';
 import { parseExport } from '../data/parseExport';
 import { saveStored } from '../data/store';
 
-export default function Upload({ onImported, currentGeneratedAt }) {
+function Upload({ onImported, currentGeneratedAt }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
@@ -138,6 +138,8 @@ export default function Upload({ onImported, currentGeneratedAt }) {
     </ScrollView>
   );
 }
+
+export default React.memo(Upload);
 
 function Step({ n, t, d }) {
   return (

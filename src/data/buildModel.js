@@ -117,6 +117,20 @@ export function buildModel(health) {
     aboveBaseline: latestHrv >= hrv30,
   };
 
+  const hrvsWithDate = daily.filter(d => d.hrv != null).map(d => ({ date: d.date, hrv: d.hrv }));
+  const hrvBaseline = hrvsWithDate.map((d, i, arr) => {
+    const window = arr.slice(Math.max(0, i - 29), i + 1).map(x => x.hrv);
+    const mean = window.reduce((a, b) => a + b, 0) / window.length;
+    const sd = window.length > 1
+      ? Math.sqrt(window.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / window.length)
+      : 0;
+    return { date: d.date, hrv: d.hrv, mean: +mean.toFixed(1), sd: +sd.toFixed(1) };
+  });
+  const latestBaseline = hrvBaseline.length ? hrvBaseline[hrvBaseline.length - 1] : null;
+  const hrvDelta = latestBaseline && latestBaseline.mean > 0
+    ? Math.round(((latestBaseline.hrv - latestBaseline.mean) / latestBaseline.mean) * 100)
+    : null;
+
   const palette = ['#0093E7', '#16EC06', '#FFDE00', '#9B6BFF'];
   const workouts = ((health && health.workouts) || []).map((w, i) => ({
     name: w.name,
@@ -126,5 +140,5 @@ export function buildModel(health) {
     color: w.color || palette[i % palette.length],
   }));
 
-  return { today, sleepStages, week, series, sleepHistory, stageAverages, recoveryDetail, workouts, generatedAt: health && health.generatedAt };
+  return { today, sleepStages, week, series, sleepHistory, stageAverages, recoveryDetail, workouts, generatedAt: health && health.generatedAt, hrvBaseline, hrvDelta };
 }

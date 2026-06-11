@@ -6,7 +6,7 @@ import { colors } from '../theme';
 
 const STAGE_ORDER = ['Deep (SWS)', 'REM', 'Light', 'Awake'];
 
-export default function Sleep({ data, stages, sleepHistory = [], stageAverages = {} }) {
+function Sleep({ data, stages, sleepHistory = [], stageAverages = {} }) {
   const totalSleep = stages.reduce((a, b) => a + b.hrs, 0);
   const allStageNames = STAGE_ORDER.filter((n) => stageAverages[n] != null);
 
@@ -126,6 +126,8 @@ export default function Sleep({ data, stages, sleepHistory = [], stageAverages =
     </ScrollView>
   );
 }
+
+export default React.memo(Sleep);
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },

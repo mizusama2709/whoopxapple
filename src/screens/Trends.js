@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { colors, recoveryColor } from '../theme';
 import LineChart from '../components/LineChart';
+import Svg, { Path, Polyline } from 'react-native-svg';
 
 const METRICS = {
   recovery: { label: 'Recovery', unit: '%', max: 100, color: (v) => recoveryColor(v), key: 'recovery' },
@@ -23,7 +24,7 @@ const RANGES = [
   { value: 90, label: '90D' },
 ];
 
-export default function Trends({ week = [], series = null }) {
+function Trends({ week = [], series = null, hrvBaseline }) {
   const [metric, setMetric] = useState('recovery');
   const [range, setRange] = useState(7);
   const { width } = useWindowDimensions();
@@ -132,6 +133,99 @@ export default function Trends({ week = [], series = null }) {
             if (!nonNull.length) return null;
             const avg30 = nonNull.reduce((a, b) => a + b, 0) / nonNull.length;
             const displayAvg = avg30.toFixed(unit === 'h' || unit === 'ms' ? 1 : 0);
+
+            // HRV baseline SVG — only in 30d/90d view when baseline data is present
+            let chartContent = null;
+            if (key === 'hrv' && hrvBaseline && hrvBaseline.length > 0) {
+              const padL = 6, padR = 6, padT = 10, padB = 18;
+              const W = chartWidth, H = 100;
+              const plotW = W - padL - padR;
+              const plotH = H - padT - padB;
+
+              // Map baseline entries by date for alignment with dateSlice
+              const baseMap = {};
+              (hrvBaseline || []).forEach(b => { baseMap[b.date] = b; });
+              const aligned = dateSlice.map(date => baseMap[date] || null);
+              const hasBaseline = aligned.some(b => b != null);
+
+              if (hasBaseline) {
+                // Unified y-scale spanning HRV values and band extremes
+                const allVals = [
+                  ...sliced.filter(v => v != null),
+                  ...aligned.filter(Boolean).map(b => b.mean + b.sd),
+                  ...aligned.filter(Boolean).map(b => b.mean - b.sd),
+                ];
+                const minV = Math.min(...allVals);
+                const maxV = Math.max(...allVals);
+                const yOf = v => padT + plotH - ((v - minV) / (maxV - minV || 1)) * plotH;
+                const xOf = i => padL + (i / Math.max(dateSlice.length - 1, 1)) * plotW;
+
+                // Band polygon: upper edge L→R, lower edge R→L, closed
+                const upperPts = aligned
+                  .map((b, i) => b ? `${xOf(i)},${yOf(b.mean + b.sd)}` : null)
+                  .filter(Boolean);
+                const lowerPts = aligned
+                  .map((b, i) => b ? `${xOf(i)},${yOf(b.mean - b.sd)}` : null)
+                  .filter(Boolean);
+                const bandPath = upperPts.length > 0
+                  ? `M${upperPts.join('L')}L${[...lowerPts].reverse().join('L')}Z`
+                  : '';
+
+                // Mean dashed line and HRV polyline
+                const meanPts = aligned
+                  .map((b, i) => b ? `${xOf(i)},${yOf(b.mean)}` : null)
+                  .filter(Boolean)
+                  .join(' ');
+                const hrvPts = sliced
+                  .map((v, i) => v != null ? `${xOf(i)},${yOf(v)}` : null)
+                  .filter(Boolean)
+                  .join(' ');
+
+                chartContent = (
+                  <Svg width={W} height={H}>
+                    {bandPath ? (
+                      <Path
+                        d={bandPath}
+                        fill={colors.recoveryHigh}
+                        fillOpacity={0.12}
+                      />
+                    ) : null}
+                    {meanPts ? (
+                      <Polyline
+                        points={meanPts}
+                        fill="none"
+                        stroke={colors.recoveryHigh}
+                        strokeOpacity={0.4}
+                        strokeWidth={1}
+                        strokeDasharray="4 4"
+                      />
+                    ) : null}
+                    {hrvPts ? (
+                      <Polyline
+                        points={hrvPts}
+                        fill="none"
+                        stroke={colors.recoveryHigh}
+                        strokeWidth={2}
+                      />
+                    ) : null}
+                  </Svg>
+                );
+              }
+            }
+
+            // Fall back to standard LineChart when no baseline SVG was built
+            if (!chartContent) {
+              chartContent = (
+                <LineChart
+                  data={sliced}
+                  labels={[firstDate, lastDate]}
+                  color={lineColor}
+                  width={chartWidth}
+                  height={100}
+                />
+              );
+            }
+
             return (
               <View key={key} style={s.lineCard}>
                 <View style={s.lineHeader}>
@@ -144,13 +238,7 @@ export default function Trends({ week = [], series = null }) {
                   </View>
                   <View style={[s.lineColorDot, { backgroundColor: lineColor }]} />
                 </View>
-                <LineChart
-                  data={sliced}
-                  labels={[firstDate, lastDate]}
-                  color={lineColor}
-                  width={chartWidth}
-                  height={100}
-                />
+                {chartContent}
               </View>
             );
           }) : (
@@ -161,6 +249,8 @@ export default function Trends({ week = [], series = null }) {
     </ScrollView>
   );
 }
+
+export default React.memo(Trends);
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },

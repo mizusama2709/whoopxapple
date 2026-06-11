@@ -29,7 +29,7 @@ function freshnessChip(dateStr) {
   return { label, stale };
 }
 
-export default function Overview({ data, source, onRefresh, refreshing, recoveryDetail, generatedAt }) {
+function Overview({ data, source, onRefresh, refreshing, recoveryDetail, generatedAt, hrvDelta }) {
   const [showExplainer, setShowExplainer] = useState(false);
   const recCol = recoveryColor(data.recovery);
   const strainPct = data.strain / 21;
@@ -106,6 +106,23 @@ export default function Overview({ data, source, onRefresh, refreshing, recovery
           <MetricCard label="HRV" value={data.hrv} unit="ms" accent={colors.recoveryHigh} />
           <MetricCard label="Resting HR" value={data.rhr} unit="bpm" accent={colors.recoveryMid} />
         </View>
+        {/* HRV baseline delta chip — only shown when hrvDelta is provided */}
+        {hrvDelta != null ? (
+          <View style={s.baselineChipRow}>
+            <View style={s.baselineChip}>
+              <Text style={[
+                s.baselineChipText,
+                { color: hrvDelta > 0 ? colors.recoveryHigh : hrvDelta < 0 ? colors.recoveryLow : colors.textMuted },
+              ]}>
+                {hrvDelta > 0
+                  ? `▲ +${Math.abs(hrvDelta)}% vs 30d baseline`
+                  : hrvDelta < 0
+                  ? `▼ -${Math.abs(hrvDelta)}% vs 30d baseline`
+                  : '— at baseline'}
+              </Text>
+            </View>
+          </View>
+        ) : null}
         <View style={s.gridRow}>
           <MetricCard label="Resp Rate" value={data.respRate} unit="rpm" accent={colors.textDim} />
           <MetricCard label="Blood O₂" value={data.spo2} unit="%" accent={colors.sleep} />
@@ -125,6 +142,8 @@ export default function Overview({ data, source, onRefresh, refreshing, recovery
     </ScrollView>
   );
 }
+
+export default React.memo(Overview);
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
@@ -255,4 +274,22 @@ const s = StyleSheet.create({
 
   grid: { paddingHorizontal: 16 },
   gridRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+
+  baselineChipRow: {
+    paddingHorizontal: 4,
+    marginBottom: 10,
+  },
+  baselineChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface2,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  baselineChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });
